@@ -6,6 +6,8 @@
 <title>Dr. Aqsa Tariq's Dental Clinic — Gulshan-e-Ravi, Lahore</title>
 <meta name="description" content="Gentle, modern dental care at Dr. Aqsa Tariq's Dental Clinic, Moon Market Road, E Block, Gulshan-e-Ravi, Lahore 54000. Teeth whitening, root canal, dental implants, braces and more. Call 0323 5710575. Open daily from 4 PM." />
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>window.DENTAL_CONFIG = { url: 'https://azejzqoobxknnsmerprs.supabase.co', key: 'sb_publishable_BZ6q0ul_ulA479o0KRa7Cw_RZRPVPuB' };</script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -407,13 +409,15 @@ tailwind.config = {
         </div>
 
         <!-- Booking form -->
-        <form class="bg-white rounded-3xl p-7 sm:p-8 shadow-soft" onsubmit="event.preventDefault(); alert('Thank you! We will confirm your appointment shortly.'); this.reset();">
+        <form id="bookingForm" class="bg-white rounded-3xl p-7 sm:p-8 shadow-soft">
           <h3 class="font-extrabold text-xl">Request an Appointment</h3>
           <p class="text-sm text-steel mt-1">We'll confirm your booking by phone.</p>
+          <div id="formStatus" class="hidden mt-4 rounded-xl px-4 py-3 text-sm font-semibold"></div>
           <div class="mt-6 space-y-4">
-            <input type="text" required placeholder="Full Name" class="w-full bg-mist rounded-xl px-4 py-3.5 text-sm outline-none focus:ring-2 focus:ring-mint/60 transition" />
-            <input type="tel" required placeholder="Phone Number" class="w-full bg-mist rounded-xl px-4 py-3.5 text-sm outline-none focus:ring-2 focus:ring-mint/60 transition" />
-            <select class="w-full bg-mist rounded-xl px-4 py-3.5 text-sm outline-none focus:ring-2 focus:ring-mint/60 transition text-steel">
+            <input id="bfName" type="text" required placeholder="Full Name" class="w-full bg-mist rounded-xl px-4 py-3.5 text-sm outline-none focus:ring-2 focus:ring-mint/60 transition" />
+            <input id="bfPhone" type="tel" required placeholder="Phone Number" class="w-full bg-mist rounded-xl px-4 py-3.5 text-sm outline-none focus:ring-2 focus:ring-mint/60 transition" />
+            <input id="bfDate" type="date" required class="w-full bg-mist rounded-xl px-4 py-3.5 text-sm outline-none focus:ring-2 focus:ring-mint/60 transition text-steel" />
+            <select id="bfService" class="w-full bg-mist rounded-xl px-4 py-3.5 text-sm outline-none focus:ring-2 focus:ring-mint/60 transition text-steel">
               <option>Teeth Whitening</option>
               <option>Root Canal Treatment</option>
               <option>Dental Implants</option>
@@ -421,7 +425,7 @@ tailwind.config = {
               <option>Scaling &amp; Polishing</option>
               <option>General Check-up</option>
             </select>
-            <button type="submit" class="btn-lift group w-full inline-flex items-center justify-center gap-3 bg-navy text-white font-semibold rounded-xl px-6 py-4 shadow-soft">
+            <button type="submit" id="bfSubmit" class="btn-lift group w-full inline-flex items-center justify-center gap-3 bg-navy text-white font-semibold rounded-xl px-6 py-4 shadow-soft">
               Book Appointment
               <span class="w-8 h-8 rounded-full bg-mint flex items-center justify-center">
                 <svg class="w-4 h-4 text-navy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
@@ -536,6 +540,44 @@ tailwind.config = {
     });
   }, { threshold: 0.5 });
   counters.forEach(c => io.observe(c));
+
+  // Supabase booking form
+  const supabase = window.supabase.createClient(
+    window.DENTAL_CONFIG.url,
+    window.DENTAL_CONFIG.key
+  );
+  const bookingForm = document.getElementById('bookingForm');
+  const status = document.getElementById('formStatus');
+  const submitBtn = document.getElementById('bfSubmit');
+  bookingForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('bfName').value.trim();
+    const phone = document.getElementById('bfPhone').value.trim();
+    const date = document.getElementById('bfDate').value;
+    const service = document.getElementById('bfService').value;
+    status.classList.add('hidden');
+    submitBtn.disabled = true;
+    submitBtn.classList.add('opacity-60', 'cursor-not-allowed');
+    try {
+      const { error } = await supabase.from('appointments').insert({
+        full_name: name,
+        phone: phone,
+        preferred_date: date,
+        service: service,
+        status: 'pending'
+      });
+      if (error) throw error;
+      status.textContent = 'Thank you, ' + name.split(' ')[0] + '! Your appointment request has been received. We will confirm shortly.';
+      status.className = 'mt-4 rounded-xl px-4 py-3 text-sm font-semibold bg-mint/15 text-mintDark';
+      bookingForm.reset();
+    } catch (err) {
+      status.textContent = 'Something went wrong (' + (err.message || 'unable to save') + '). Please call us at 0323 5710575.';
+      status.className = 'mt-4 rounded-xl px-4 py-3 text-sm font-semibold bg-red-100 text-red-700';
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.classList.remove('opacity-60', 'cursor-not-allowed');
+    }
+  });
 </script>
 </body>
 </html>
