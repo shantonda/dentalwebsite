@@ -6,7 +6,6 @@
 <title>Dr. Aqsa Tariq's Dental Clinic — Gulshan-e-Ravi, Lahore</title>
 <meta name="description" content="Gentle, modern dental care at Dr. Aqsa Tariq's Dental Clinic, Moon Market Road, E Block, Gulshan-e-Ravi, Lahore 54000. Teeth whitening, root canal, dental implants, braces and more. Call 0323 5710575. Open daily from 4 PM." />
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>window.DENTAL_CONFIG = { url: 'https://azejzqoobxknnsmerprs.supabase.co', key: 'sb_publishable_BZ6q0ul_ulA479o0KRa7Cw_RZRPVPuB' };</script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -541,11 +540,8 @@ tailwind.config = {
   }, { threshold: 0.5 });
   counters.forEach(c => io.observe(c));
 
-  // Supabase booking form
-  const supabase = window.supabase.createClient(
-    window.DENTAL_CONFIG.url,
-    window.DENTAL_CONFIG.key
-  );
+  // Supabase booking form (native fetch – no external library needed)
+  const config = window.DENTAL_CONFIG;
   const bookingForm = document.getElementById('bookingForm');
   const status = document.getElementById('formStatus');
   const submitBtn = document.getElementById('bfSubmit');
@@ -559,14 +555,27 @@ tailwind.config = {
     submitBtn.disabled = true;
     submitBtn.classList.add('opacity-60', 'cursor-not-allowed');
     try {
-      const { error } = await supabase.from('appointments').insert({
-        full_name: name,
-        phone: phone,
-        preferred_date: date,
-        service: service,
-        status: 'pending'
+      const res = await fetch(config.url + '/rest/v1/appointments', {
+        method: 'POST',
+        headers: {
+          'apikey': config.key,
+          'Authorization': 'Bearer ' + config.key,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({
+          full_name: name,
+          phone: phone,
+          preferred_date: date || null,
+          service: service,
+          status: 'pending'
+        })
       });
-      if (error) throw error;
+      if (!res.ok) {
+        let detail = 'HTTP ' + res.status;
+        try { const j = await res.json(); if (j.message) detail = j.message; } catch (_) {}
+        throw new Error(detail);
+      }
       status.textContent = 'Thank you, ' + name.split(' ')[0] + '! Your appointment request has been received. We will confirm shortly.';
       status.className = 'mt-4 rounded-xl px-4 py-3 text-sm font-semibold bg-mint/15 text-mintDark';
       bookingForm.reset();
