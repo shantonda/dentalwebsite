@@ -564,10 +564,11 @@ tailwind.config = {
     </div>
   </div>
 
-  <div class="max-w-6xl mx-auto px-6 mt-12 pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
+<div class="max-w-6xl mx-auto px-6 mt-12 pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
     <p>&copy; 2026 Dr. Aqsa Tariq's Dental Clinic. All rights reserved.</p>
     <p>Gentle Care · Confident Smiles</p>
-  </div>
+    <a href="#" id="adminLoginLink" class="text-xs text-mantra hover:text-navy transition-colors admin-link">Admin</a>
+</div>
 </footer>
 
 <script>
@@ -659,6 +660,45 @@ tailwind.config = {
   document.getElementById('logoutBtn').addEventListener('click', () => {
     loginModal.classList.remove('hidden');
     document.getElementById('loggedInState').classList.add('hidden');
+  });
+
+  // Admin panel link
+  const adminLoginLink = document.getElementById('adminLoginLink');
+  const adminLoginModal = document.createElement('div');
+  adminLoginModal.innerHTML = `
+    <div class="fixed inset-0 bg-black/50 backdrop-blur-zxl z-50">
+      <div class="relative top-20 left-1/2 -translate-x-1/2 bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl max-w-sm">
+        <button class="absolute top-4 right-4 w-8 h-8 rounded-full bg-navy text-white flex items-center justify-center text-sm font-semibold" id="adminCloseModal">×</button>
+        <h3 class="font-bold text-lg text-navy mb-4">Admin Login</h3>
+        <p class="text-steel text-sm mb-6">Enter admin credentials</p>
+        <div class="space-y-4">
+          <input type="email" id="adminEmail" placeholder="Admin email" class="w-full px-4 py-3 rounded-border border-border focus:ring-2 focus:ring-mint/60 focus:border-transparent transition">
+          <input type="password" id="adminPass" placeholder="Password" class="w-full px-4 py-3 rounded-border border-border focus:ring-2 focus:ring-mint/60 focus:border-transparent transition">
+          <button id="adminSignIn" class="w-full bg-navy text-white font-semibold py-3 rounded-full hover:bg-navy/90 transition-colors">Login as Admin</button>
+        </div>
+        <p class="text-xs text-steel text-center">First time? <a href="#" id="adminSetupLink" class="font-medium text-mint underline">Setup admin account</a></p>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(adminLoginModal);
+
+  // Toggle admin modal
+  adminLoginLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    loginModal.classList.add('hidden');
+    adminLoginModal.classList.remove('hidden');
+  });
+
+  document.getElementById('adminCloseModal').addEventListener('click', () => {
+    adminLoginModal.classList.add('hidden');
+    loginModal.classList.remove('hidden');
+  });
+
+  // Setup link
+  const adminSetupLink = document.getElementById('adminSetupLink');
+  adminSetupLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    alert('Admin setup: This would create the first admin account in Supabase. One-time only.');
   });
   const config = window.DENTAL_CONFIG;
   const bookingForm = document.getElementById('bookingForm');
