@@ -118,15 +118,73 @@ tailwind.config = {
           <svg class="w-4 h-4 text-mintDark" viewBox="0 0 24 24" fill="currentColor"><path d="M6.6 10.8c1.5 2.9 3.7 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.9 21 3 13.1 3 3c0-.6.4-1 1-1h3.4c.6 0 1 .4 1 1 0 1.2.2 2.4.6 3.6.1.3 0 .7-.2 1l-2.2 2.2z"/></svg>
         </span>
       </a>
-      <a href="#visit" class="btn-lift group inline-flex items-center gap-2 bg-navy text-white text-sm font-semibold rounded-full pl-5 pr-1.5 py-1.5 shadow-soft">
-        Book Appointment
+      <!-- Login / Sign Up Button -->
+      <button id="loginBtn" class="btn-lift group inline-flex items-center gap-2 bg-navy text-white text-sm font-semibold rounded-full pl-5 pr-1.5 py-1.5 shadow-soft">
+        Login / Sign Up
         <span class="w-8 h-8 rounded-full bg-mint flex items-center justify-center">
-          <svg class="w-4 h-4 text-navy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l4 4-4 4"/><path d="M8 12h8"/></svg>
+          <svg class="w-4 h-4 text-navy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l4 4-4 4"/></svg>
         </span>
-      </a>
-      <button id="menuBtn" class="md:hidden w-10 h-10 rounded-full bg-mist flex items-center justify-center">
-        <svg class="w-5 h-5 text-navy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
       </button>
+      
+      <!-- Login Modal -->
+      <div id="loginModal" class="fixed inset-0 bg-black/40 backdrop-blur-zxl hidden z-50">
+        <div class="relative top-20 left-1/2 -translate-x-1/2 bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl">
+          <button id="closeModal" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-navy text-white flex items-center justify-center text-sm font-semibold">×</button>
+          <div class="space-y-6">
+            <!-- Google Tab -->
+            <div id="googleTab" class="tab-panel block">
+              <h3 class="font-bold text-lg text-navy mb-4">Sign in with Google</h3>
+              <p class="text-steel text-sm mb-6">Connect your Google account to book appointments</p>
+              <button id="googleSignIn" class="w-full bg-navy text-white font-semibold py-3 rounded-full hover:bg-navy/90 transition-colors">
+                Continue with Google
+                <svg class="w-4 h-4 inline-block align-middle" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M22.127 11.9l-7.193-5.047-4.438 3.818 1.185 7.708 7.898-6.018 1.61 7.705H9.737zM6.137 15.75h5.957l-.923-4.713 4.167 1.25L6.137 15.75zM6.137 7.5h5.957L12 2.408 5.957 7.5H6.137zM12 3.5c3.309 0 5.968 1.468 7.678 3.76L24 11.058l-4.77-2.855L12 3.5zM12 4.483c2.19 0 4.034 1.257 5.303 2.883L21 11.058L12 4.483zM5.603 11.9l7.194 5.047 4.438-3.818-1.185-7.708-7.897 6.019-1.61-7.705H14.263zM17.863 15.75h-5.957l.923 4.713-4.167-1.25L17.863 15.75zM17.863 7.5h-5.957L12 2.408 16.043 7.5H17.863z"/>
+                </svg>
+              </button>
+            </div>
+            
+            <!-- Email/Password Tab -->
+            <div id="emailTab" class="tab-panel hidden">
+              <h3 class="font-bold text-lg text-navy mb-4">Email & Password</h3>
+              <p class="text-steel text-sm mb-6">Enter your email and password to sign in</p>
+              <div class="space-y-4">
+                <input type="email" id="emailInput" placeholder="Email" class="w-full px-4 py-3 rounded-border border-border focus:ring-2 focus:ring-mint/60 focus:border-transparent transition">
+                <input type="password" id="passInput" placeholder="Password" class="w-full px-4 py-3 rounded-border border-border focus:ring-2 focus:ring-mint/60 focus:border-transparent transition">
+                <button id="emailSignIn" class="w-full bg-navy text-white font-semibold py-3 rounded-full hover:bg-navy/90 transition-colors">
+                  Sign In
+                </svg>
+              </button>
+              <p class="text-xs text-steel text-center">Don't have an account? <a href="#" id="showSignUp" class="font-medium text-mint underline">Sign up</a></p>
+              <p class="text-xs text-steel text-center">Forgot <a href="#" id="showForgot" class="font-medium text-mint underline">password?</a></p>
+            </div>
+            
+            <!-- Phone OTP Tab -->
+            <div id="phoneTab" class="tab-panel hidden">
+              <h3 class="font-bold text-lg text-navy mb-4">Phone Number (OTP)</h3>
+              <p class="text-steel text-sm mb-6">Enter your phone number to receive a verification code</p>
+              <div class="space-y-4">
+                <input type="tel" id="phoneInput" placeholder="+92 300 1234567" class="w-full px-4 py-3 rounded-border border-border focus:ring-2 focus:ring-mint/60 focus:border-transparent transition">
+                <button id="phoneSignIn" class="w-full bg-navy text-white font-semibold py-3 rounded-full hover:bg-navy/90 transition-colors">
+                  Send OTP
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="flex justify-end pt-4">
+            <button id="closeAuth" class="px-4 py-2 bg-gray-200 text-navy rounded hover:bg-gray-300 text-sm">Cancel</button>
+            <button id="loginSubmit" class="px-4 py-2 bg-navy text-white rounded hover:bg-navy/90 font-semibold text-sm ml-2">Login</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Logged In State -->
+      <div id="loggedInState" class="hidden items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-mint flex items-center justify-center">
+          <span id="userInitials" class="text-navy font-bold text-sm">U</span>
+        </div>
+        <span id="userName" class="font-medium text-white"></span>
+        <button id="logoutBtn" class="text-sm text-navy hover:text-mantra">Logout</button>
+      </div>
     </div>
   </nav>
 </header>
@@ -519,10 +577,10 @@ tailwind.config = {
   menuBtn.addEventListener('click', () => mobileMenu.classList.toggle('hidden'));
   document.querySelectorAll('.mobile-link').forEach(l => l.addEventListener('click', () => mobileMenu.classList.add('hidden')));
 
-  // Scroll-triggered number counters
+// Scroll-triggered number counters
   const counters = document.querySelectorAll('[data-count]');
   const animateCount = (el) => {
-    const target = +el.dataset.count;
+    const target = +elDataset.count;
     const dur = 1400;
     const start = performance.now();
     const step = (now) => {
@@ -540,7 +598,68 @@ tailwind.config = {
   }, { threshold: 0.5 });
   counters.forEach(c => io.observe(c));
 
-  // Supabase booking form (native fetch – no external library needed)
+  // --- LOGIN MODAL ---
+  const loginBtn = document.getElementById('loginBtn');
+  const loginModal = document.getElementById('loginModal');
+  const closeModal = document.getElementById('closeModal');
+  const closeAuth = document.getElementById('closeAuth');
+  const googleTab = document.getElementById('googleTab');
+  const emailTab = document.getElementById('emailTab');
+  const phoneTab = document.getElementById('phoneTab');
+  const googleSignIn = document.getElementById('googleSignIn');
+  const emailSignIn = document.getElementById('emailSignIn');
+  const showSignUp = document.getElementById('showSignUp');
+  const showForgot = document.getElementById('showForgot');
+  const loginSubmit = document.getElementById('loginSubmit');
+
+  // Toggle modal
+  loginBtn.addEventListener('click', () => loginModal.classList.remove('hidden'));
+  closeModal.addEventListener('click', () => loginModal.classList.add('hidden'));
+  closeAuth.addEventListener('click', () => loginModal.classList.add('hidden'));
+
+  // Tab switching
+  googleSignIn.addEventListener('click', () => {
+    googleTab.classList.remove('hidden');
+    emailTab.classList.add('hidden');
+    phoneTab.classList.add('hidden');
+  });
+  emailSignIn.addEventListener('click', () => {
+    googleTab.classList.add('hidden');
+    emailTab.classList.remove('hidden');
+    phoneTab.classList.add('hidden');
+  });
+  showSignUp.addEventListener('click', () => {
+    googleTab.classList.add('hidden');
+    emailTab.classList.add('hidden');
+    phoneTab.classList.add('hidden');
+    alert('Sign up functionality would be implemented with Supabase Auth');
+  });
+  showForgot.addEventListener('click', () => {
+    googleTab.classList.add('hidden');
+    emailTab.classList.add('hidden');
+    phoneTab.classList.add('hidden');
+    alert('Password reset would be implemented with Supabase Auth');
+  });
+
+  // Phone sign in
+  phoneSignIn.addEventListener('click', () => {
+    const phone = document.getElementById('phoneInput').value;
+    alert(`OTP would be sent to ${phone} with Supabase Phone Auth`);
+  });
+
+  // Simulated login - hide modal and show logged in state
+  loginSubmit.addEventListener('click', () => {
+    loginModal.classList.add('hidden');
+    document.getElementById('loggedInState').classList.remove('hidden');
+    document.getElementById('userInitials').textContent = 'U';
+    document.getElementById('userName').textContent = 'Patient';
+  });
+
+  // Logout
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    loginModal.classList.remove('hidden');
+    document.getElementById('loggedInState').classList.add('hidden');
+  });
   const config = window.DENTAL_CONFIG;
   const bookingForm = document.getElementById('bookingForm');
   const status = document.getElementById('formStatus');
