@@ -148,8 +148,8 @@ tailwind.config = {
               <h3 class="font-bold text-lg text-navy mb-4">Email & Password</h3>
               <p class="text-steel text-sm mb-6">Enter your email and password to sign in</p>
               <div class="space-y-4">
-                <input type="email" id="emailInput" placeholder="Email" class="w-full px-4 py-3 rounded-border border-border focus:ring-2 focus:ring-mint/60 focus:border-transparent transition">
-                <input type="password" id="passInput" placeholder="Password" class="w-full px-4 py-3 rounded-border border-border focus:ring-2 focus:ring-mint/60 focus:border-transparent transition">
+                <input type="email" id="emailInput" placeholder="Email" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mint/60 focus:border-transparent transition">
+                <input type="password" id="passInput" placeholder="Password" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mint/60 focus:border-transparent transition">
                 <button id="emailSignIn" class="w-full bg-navy text-white font-semibold py-3 rounded-full hover:bg-navy/90 transition-colors">
                   Sign In
                 </svg>
@@ -163,7 +163,7 @@ tailwind.config = {
               <h3 class="font-bold text-lg text-navy mb-4">Phone Number (OTP)</h3>
               <p class="text-steel text-sm mb-6">Enter your phone number to receive a verification code</p>
               <div class="space-y-4">
-                <input type="tel" id="phoneInput" placeholder="+92 300 1234567" class="w-full px-4 py-3 rounded-border border-border focus:ring-2 focus:ring-mint/60 focus:border-transparent transition">
+                <input type="tel" id="phoneInput" placeholder="+92 300 1234567" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mint/60 focus:border-transparent transition">
                 <button id="phoneSignIn" class="w-full bg-navy text-white font-semibold py-3 rounded-full hover:bg-navy/90 transition-colors">
                   Send OTP
                 </svg>
@@ -599,7 +599,7 @@ tailwind.config = {
   }, { threshold: 0.5 });
   counters.forEach(c => io.observe(c));
 
-  // --- LOGIN MODAL ---
+  // --- LOGIN MODAL + SUPABASE AUTH ---
   const loginBtn = document.getElementById('loginBtn');
   const loginModal = document.getElementById('loginModal');
   const closeModal = document.getElementById('closeModal');
@@ -613,93 +613,283 @@ tailwind.config = {
   const showForgot = document.getElementById('showForgot');
   const loginSubmit = document.getElementById('loginSubmit');
 
-  // Toggle modal
+  const sbConfig = window.DENTAL_CONFIG;
+  const sbHeaders = { 'apikey': sbConfig.key, 'Authorization': 'Bearer ' + sbConfig.key, 'Content-Type': 'application/json' };
+
+  function getSession() {
+    try { return JSON.parse(localStorage.getItem('sb_session') || 'null'); } catch (_) { return null; }
+  }
+  function setSession(s) { localStorage.setItem('sb_session', JSON.stringify(s)); }
+  function clearSession() { localStorage.removeItem('sb_session'); }
+
+  async function ensurePatientRow(user) {
+    const patientId = user.id;
+    try {
+      // Check if patient exists
+      const check = await fetch(sbConfig.url + '/rest/v1/patients?user_id=eq.' + patientId + '&select=id,full_name,email,phone', {
+        headers: sbHeaders
+      });
+      const rows = await check.json();
+      if (!Array.isArray(rows) || rows.length === 0) {
+        // Create patient row
+        await fetch(sbConfig.url + '/rest/v1/patients', {
+          method: 'POST',
+          headers: sbHeaders,
+          body: JSON.stringify({
+            user_id: patientId,
+            full_name: (user.user_metadata && user.user_metadata.full_name) || user.email || 'Patient',
+            email: user.email || null,
+            phone: (user.user_metadata && user.user_metadata.phone) || (user.phone ? '+' + user.phone : null)
+          })
+        });
+      }
+    } catch (e) {
+      console.error('ensurePatientRow error:', e);
+    }
+  }
+
+  async function showLoggedIn(user) {
+    await ensurePatientRow(user);
+    const name = (user.user_metadata && user.user_metadata.full_name) || (user.email && user.email.split('@')[0]) || 'Patient';
+    const initials = name.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
+    document.getElementById('userInitials').textContent = initials;
+    document.getElementById('userName').textContent = name;
+    loginModal.classList.add('hidden');
+    document.getElementById('loggedInState').classList.remove('hidden');
+    loginBtn.classList.add('hidden');
+  }
+
+  async function tryRestoreSession() {
+    const s = getSession();
+    if (!s || !s.access_token) return;
+    try {
+      const res = await fetch(sbConfig.url + '/auth/v1/user', {
+        headers: { 'apikey': sbConfig.key, 'Authorization': 'Bearer ' + s.access_token }
+      });
+      if (res.ok) {
+        const user = await res.json();
+        await showLoggedIn(user);
+      } else {
+        clearSession();
+      }
+    } catch (_) { clearSession(); }
+  }
+
+  // Open modal
   loginBtn.addEventListener('click', () => loginModal.classList.remove('hidden'));
   closeModal.addEventListener('click', () => loginModal.classList.add('hidden'));
   closeAuth.addEventListener('click', () => loginModal.classList.add('hidden'));
 
-  // Tab switching
-  googleSignIn.addEventListener('click', () => {
-    googleTab.classList.remove('hidden');
-    emailTab.classList.add('hidden');
-    phoneTab.classList.add('hidden');
+  // Tab switching — first open the chosen tab
+  function showOnlyTab(visibleTab) {
+    [googleTab, emailTab, phoneTab].forEach(t => t.classList.add('hidden'));
+    visibleTab.classList.remove('hidden');
+  }
+  googleTab.classList.remove('hidden');
+  googleSignIn.addEventListener('click', () => showOnlyTab(googleTab));
+  emailSignIn.addEventListener('click', () => showOnlyTab(emailTab));
+
+  // --- GOOGLE SIGN IN ---
+  async function googleSignInAction() {
+    try {
+      const res = await fetch(sbConfig.url + '/auth/v1/authorize?provider=google', {
+        headers: { 'apikey': sbConfig.key, 'Authorization': 'Bearer ' + sbConfig.key }
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert('Google sign-in URL not available. Enable Google provider in Supabase Dashboard → Authentication → Providers.');
+      }
+    } catch (e) {
+      alert('Google sign-in failed: ' + e.message);
+    }
+  }
+  googleSignIn.addEventListener('click', googleSignInAction);
+
+  // --- EMAIL + PASSWORD ---
+  let emailMode = 'signin'; // 'signin' or 'signup'
+
+  async function emailAuthAction() {
+    const email = document.getElementById('emailInput').value.trim();
+    const password = document.getElementById('passInput').value.trim();
+    if (!email || !password) { alert('Enter email and password'); return; }
+
+    const endpoint = emailMode === 'signup' ? '/auth/v1/signup' : '/auth/v1/token?grant_type=password';
+    try {
+      const res = await fetch(sbConfig.url + endpoint, {
+        method: 'POST',
+        headers: sbHeaders,
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert((data.msg || data.message || data.error_description || 'Auth failed') + ' — Make sure Email provider is enabled in Supabase.');
+        return;
+      }
+      if (emailMode === 'signup') {
+        if (data.session) {
+          setSession(data.session);
+          await showLoggedIn(data.user);
+        } else {
+          alert('Signup successful! Check your email to confirm, then sign in.');
+          emailMode = 'signin';
+          document.getElementById('emailSignIn').textContent = 'Sign In';
+        }
+      } else {
+        setSession({ access_token: data.access_token, refresh_token: data.refresh_token, user: data.user });
+        await showLoggedIn(data.user);
+      }
+    } catch (e) {
+      alert('Auth error: ' + e.message);
+    }
+  }
+  emailSignIn.addEventListener('click', emailAuthAction);
+
+  showSignUp.addEventListener('click', (e) => {
+    e.preventDefault();
+    emailMode = 'signup';
+    document.getElementById('emailSignIn').textContent = 'Sign Up';
+    showOnlyTab(emailTab);
   });
-  emailSignIn.addEventListener('click', () => {
-    googleTab.classList.add('hidden');
-    emailTab.classList.remove('hidden');
-    phoneTab.classList.add('hidden');
-  });
-  showSignUp.addEventListener('click', () => {
-    googleTab.classList.add('hidden');
-    emailTab.classList.add('hidden');
-    phoneTab.classList.add('hidden');
-    alert('Sign up functionality would be implemented with Supabase Auth');
-  });
-  showForgot.addEventListener('click', () => {
-    googleTab.classList.add('hidden');
-    emailTab.classList.add('hidden');
-    phoneTab.classList.add('hidden');
-    alert('Password reset would be implemented with Supabase Auth');
+  showForgot.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('emailInput').value.trim();
+    if (!email) { alert('Enter your email first'); return; }
+    try {
+      await fetch(sbConfig.url + '/auth/v1/recover', {
+        method: 'POST',
+        headers: sbHeaders,
+        body: JSON.stringify({ email })
+      });
+      alert('Password reset email sent (if the email is registered).');
+    } catch (err) { alert('Reset error: ' + err.message); }
   });
 
-  // Phone sign in
-  phoneSignIn.addEventListener('click', () => {
-    const phone = document.getElementById('phoneInput').value;
-    alert(`OTP would be sent to ${phone} with Supabase Phone Auth`);
-  });
+  // --- PHONE OTP ---
+  let phoneStep = 'enter';
+  async function phoneAuthAction() {
+    const phone = document.getElementById('phoneInput').value.trim();
+    if (phoneStep === 'enter') {
+      if (!phone) { alert('Enter phone number with country code, e.g. +923001234567'); return; }
+      try {
+        const res = await fetch(sbConfig.url + '/auth/v1/otp', {
+          method: 'POST',
+          headers: sbHeaders,
+          body: JSON.stringify({ phone })
+        });
+        const data = await res.json();
+        if (!res.ok) { alert((data.msg || data.message || 'OTP failed') + ' — Enable Phone provider in Supabase.'); return; }
+        phoneStep = 'verify';
+        document.getElementById('phoneSignIn').textContent = 'Verify OTP';
+        alert('OTP sent to ' + phone);
+      } catch (e) { alert('Phone error: ' + e.message); }
+    } else {
+      const token = prompt('Enter the 6-digit OTP:');
+      if (!token) return;
+      try {
+        const res = await fetch(sbConfig.url + '/auth/v1/verify', {
+          method: 'POST',
+          headers: sbHeaders,
+          body: JSON.stringify({ phone, token, type: 'sms' })
+        });
+        const data = await res.json();
+        if (!res.ok) { alert(data.msg || data.message || 'Invalid OTP'); return; }
+        setSession({ access_token: data.access_token, refresh_token: data.refresh_token, user: data.user });
+        await showLoggedIn(data.user);
+        phoneStep = 'enter';
+        document.getElementById('phoneSignIn').textContent = 'Send OTP';
+      } catch (e) { alert('Verify error: ' + e.message); }
+    }
+  }
+  phoneSignIn.addEventListener('click', phoneAuthAction);
 
-  // Simulated login - hide modal and show logged in state
-  loginSubmit.addEventListener('click', () => {
-    loginModal.classList.add('hidden');
-    document.getElementById('loggedInState').classList.remove('hidden');
-    document.getElementById('userInitials').textContent = 'U';
-    document.getElementById('userName').textContent = 'Patient';
-  });
+  // Legacy Login button (still works as email sign-in shortcut)
+  loginSubmit.addEventListener('click', emailAuthAction);
 
-  // Logout
+  // --- LOGOUT ---
   document.getElementById('logoutBtn').addEventListener('click', () => {
-    loginModal.classList.remove('hidden');
+    clearSession();
     document.getElementById('loggedInState').classList.add('hidden');
+    loginBtn.classList.remove('hidden');
+    loginModal.classList.remove('hidden');
   });
 
-  // Admin panel link
+  // Restore session on page load
+  tryRestoreSession();
+
+  // Admin panel link (must exist in DOM at load time)
   const adminLoginLink = document.getElementById('adminLoginLink');
   const adminLoginModal = document.createElement('div');
+  adminLoginModal.classList.add('hidden');
   adminLoginModal.innerHTML = `
-    <div class="fixed inset-0 bg-black/50 backdrop-blur-zxl z-50">
-      <div class="relative top-20 left-1/2 -translate-x-1/2 bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl max-w-sm">
+    <div class="fixed inset-0 bg-black/50 z-50">
+      <div class="relative top-20 left-1/2 -translate-x-1/2 bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl">
         <button class="absolute top-4 right-4 w-8 h-8 rounded-full bg-navy text-white flex items-center justify-center text-sm font-semibold" id="adminCloseModal">×</button>
         <h3 class="font-bold text-lg text-navy mb-4">Admin Login</h3>
         <p class="text-steel text-sm mb-6">Enter admin credentials</p>
         <div class="space-y-4">
-          <input type="email" id="adminEmail" placeholder="Admin email" class="w-full px-4 py-3 rounded-border border-border focus:ring-2 focus:ring-mint/60 focus:border-transparent transition">
-          <input type="password" id="adminPass" placeholder="Password" class="w-full px-4 py-3 rounded-border border-border focus:ring-2 focus:ring-mint/60 focus:border-transparent transition">
+          <input type="email" id="adminEmail" placeholder="Admin email" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mint/60 focus:border-transparent transition">
+          <input type="password" id="adminPass" placeholder="Password" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mint/60 focus:border-transparent transition">
           <button id="adminSignIn" class="w-full bg-navy text-white font-semibold py-3 rounded-full hover:bg-navy/90 transition-colors">Login as Admin</button>
         </div>
-        <p class="text-xs text-steel text-center">First time? <a href="#" id="adminSetupLink" class="font-medium text-mint underline">Setup admin account</a></p>
+        <p id="adminStatus" class="text-xs text-steel text-center mt-3"></p>
+        <p class="text-xs text-steel text-center mt-2">First time? Create the admin user manually in <a href="https://supabase.com/dashboard/project/azejzqoobxknnsmerprs/auth/users" target="_blank" class="font-medium text-mintDark underline">Supabase Auth → Users</a> (one-time only).</p>
       </div>
     </div>
   `;
   document.body.appendChild(adminLoginModal);
 
-  // Toggle admin modal
-  adminLoginLink.addEventListener('click', (e) => {
-    e.preventDefault();
-    loginModal.classList.add('hidden');
-    adminLoginModal.classList.remove('hidden');
-  });
+  if (adminLoginLink) {
+    adminLoginLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      loginModal.classList.add('hidden');
+      adminLoginModal.classList.remove('hidden');
+    });
+  }
 
-  document.getElementById('adminCloseModal').addEventListener('click', () => {
-    adminLoginModal.classList.add('hidden');
-    loginModal.classList.remove('hidden');
-  });
+  const adminCloseModalBtn = document.getElementById('adminCloseModal');
+  if (adminCloseModalBtn) {
+    adminCloseModalBtn.addEventListener('click', () => {
+      adminLoginModal.classList.add('hidden');
+    });
+  }
 
-  // Setup link
-  const adminSetupLink = document.getElementById('adminSetupLink');
-  adminSetupLink.addEventListener('click', (e) => {
-    e.preventDefault();
-    alert('Admin setup: This would create the first admin account in Supabase. One-time only.');
-  });
+  const adminSignInBtn = document.getElementById('adminSignIn');
+  const adminStatus = document.getElementById('adminStatus');
+  if (adminSignInBtn) {
+    adminSignInBtn.addEventListener('click', async () => {
+      const email = document.getElementById('adminEmail').value.trim();
+      const password = document.getElementById('adminPass').value.trim();
+      if (!email || !password) { adminStatus.textContent = 'Enter admin email and password.'; return; }
+      adminStatus.textContent = 'Signing in...';
+      try {
+        const res = await fetch(sbConfig.url + '/auth/v1/token?grant_type=password', {
+          method: 'POST',
+          headers: sbHeaders,
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          adminStatus.textContent = (data.msg || data.message || 'Login failed');
+          return;
+        }
+        // Check if this user is the designated admin in admin_users
+        const adminCheck = await fetch(sbConfig.url + '/rest/v1/admin_users?email=eq.' + encodeURIComponent(email), {
+          headers: { 'apikey': sbConfig.key, 'Authorization': 'Bearer ' + data.access_token }
+        });
+        const adminRows = await adminCheck.json();
+        if (Array.isArray(adminRows) && adminRows.length > 0) {
+          adminStatus.textContent = 'Admin signed in! (Dashboard coming soon.)';
+          setTimeout(() => adminLoginModal.classList.add('hidden'), 1500);
+        } else {
+          adminStatus.textContent = 'Access denied — this email is not a registered admin.';
+        }
+      } catch (err) {
+        adminStatus.textContent = 'Error: ' + err.message;
+      }
+    });
+  }
   const config = window.DENTAL_CONFIG;
   const bookingForm = document.getElementById('bookingForm');
   const status = document.getElementById('formStatus');
